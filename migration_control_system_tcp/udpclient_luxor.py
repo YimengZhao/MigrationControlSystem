@@ -6,6 +6,7 @@ import time
 import sys
 import subprocess
 import os
+import json
 
 q = Queue.Queue()
 global recvPktCount
@@ -21,7 +22,7 @@ password = "19910428" #replace password
 #-----------------------------------------------
 # Server Class: receive msg from controller
 #----------------------------------------------
-class TCPServer(asyncore.dispatcher):
+class TCPControlServer(asyncore.dispatcher):
     def __init__(self, host, port):
         asyncore.dispatcher.__init__(self)
         
@@ -30,15 +31,18 @@ class TCPServer(asyncore.dispatcher):
         self.bind(('', port))
         self.listen(1)
 
-        
-        
-
+    
     def handle_accept(self):
         # when we get a client connection start a dispatcher for that
         # client
-        socket, address = self.accept()
-        print 'Connection by', address
-        EventHandler(socket)
+        pair = self.accept()
+        if pair is None:
+            print "self.accept() return null"
+            return
+        else:
+            socket, address = pair
+            print 'Connection by', address
+            EventHandler(socket)
 
     def handle_close(self):
         print "Connection closed"
@@ -46,19 +50,35 @@ class TCPServer(asyncore.dispatcher):
 
 
 class EventHandler(asyncore.dispatcher_with_send):
- 
+    def recv(self, buffer_size):
+        print 'test'
+        try:
+            data = self.socket.recv(buffer_size)
+            if not data:
+                # a closed connection is indicated by signaling
+                # a read condition, and having recv() return 0.
+                self.handle_close()
+                return ''
+            else:
+                return data
+        except socket.error, why:
+            # winsock sometimes throws ENOTCONN
+            print why
+            print socket.error
+            return ''
+        
+
     def handle_read(self):
         
             #sudo = None
 	    #sudotcp = None
-            msg = self.recv(8192)
+            msg = self.recv(2456)
             if not msg:
                 return
-            if msg == "start":
+            jsonData = json.loads(msg)
+            if jsonData['action'] == "start":
                 global expCount
                 expCount += 1
-                global recvPktCount
-                recvPktCount = 0
                 print 'Experiment: ',expCount
                 global pktLossFile
                 pktLossFile.write('Experiment: ' + str(expCount) + '\n')
@@ -70,70 +90,41 @@ class EventHandler(asyncore.dispatcher_with_send):
                 sudotcp = subprocess.Popen(["sudo","-S","tcpdump","-i","eth1", "host", "192.168.9.2", "and", "192.168.9.3", "-w", tcpdump_file_dir],stdin=echo.stdout,stdout=subprocess.PIPE)
                 print sudotcp.stdout
                 print "start"
-            if msg == "resume":
+            if jsonData['action'] == "resume":
                 echo = subprocess.Popen(["echo", password],stdout=subprocess.PIPE,)
                 sudo = subprocess.Popen(["sudo","-S","iptables","-D","INPUT", "-s", "192.168.9.0/24", "-j", "DROP"],stdin=echo.stdout,stdout=subprocess.PIPE)
                 print "resume"
                 print sudo.stdout
-            if msg == "pause":
+            if jsonData['action'] == "pause":
                 echo = subprocess.Popen(["echo", password],stdout=subprocess.PIPE,)
                 sudo = subprocess.Popen(["sudo","-S","iptables","-A","INPUT", "-s", "192.168.9.0/24", "-j", "DROP"],stdin=echo.stdout,stdout=subprocess.PIPE)
                 print "pause"
                 print sudo.stdout
-            if msg == "stop":
+            if jsonData['action'] == "stop":
                 print "stop"
-                global recvPktCount
-                print "Received Pkt: ", recvPktCount
-                global pktLossFile
-                pktLossFile.write("Received Pkt:" + str(recvPktCount) + '\n')
-                pktLossFile.flush()
-                
-                recvPktCount = 0
                 os.system("sudo kill %d"%(sudotcp.pid))
-            if msg == "exit": 
+            if jsonData['action'] == "exit": 
                 global q
                 q.put(msg)
                 sys.exit()
 
-#-----------------------------------------------
-# A simple UDP server
-#----------------------------------------------
-class UdpServer(threading.Thread):
-    def __init__(self, host, port):
-        threading.Thread.__init__(self)
-        self.server = host
-        self.port = port
-        server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        server_socket.bind((host,port))
-
-        print "The server is ready to receive"
-        global recvPktCount
-        recvPktCount = 0
-        while(1):
-            message, clientAddress = server_socket.recvfrom(2456)
-            recvPktCount += 1                
-
-    
-
+              
 
 if __name__ == "__main__":
    
     #setup tcp server
-    tcp_server = TCPServer('', 60011)
+    tcp_server = TCPControlServer('', 60011)
     tcp_thread = threading.Thread(target=asyncore.loop)
     tcp_thread.daemon = True
     tcp_thread.start()
   
-    #setup udp server
-    udp_server = UdpServer('192.168.9.2', 60010)
-    udp_server.daemon = True
-    udp_server.start()
-    
+        
     global q
     while(1):
         if not q.empty():
             msg = q.get()
-            if msg == "exit":
+            jsonData = json.loads(msg)
+            if jsonData['action'] == "exit":
                 print "program exits"
                 sys.exit()
     
