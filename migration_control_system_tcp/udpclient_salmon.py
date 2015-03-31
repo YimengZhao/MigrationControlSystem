@@ -102,7 +102,7 @@ class EventHandler(asyncore.dispatcher_with_send):
                         write_to_clients(json.dumps(msg))
             if jsonData["action"] == "stop":
                 #stop tcpdump
-                os.system("sudo kill %d"%(sudo.pid))
+                os.system("sudo kill %d"%(sudo.pid))               
             if jsonData["action"] == "pause":
                 #pause = True	       #for pausing the application
                 pause = False	#for no pausing the application (base line case)

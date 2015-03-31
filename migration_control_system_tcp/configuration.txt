@@ -1,9 +1,9 @@
 [
   {
-    "before_start_t": 15,
-    "resume_stop_t": 5, 
-    "pause_resume_t": 100, 
-    "start_pause_t": 15, 
-    "stop_restart_t": 5
+    "before_start_t": 10,
+    "resume_stop_t": 10, 
+    "pause_resume_t": 50, 
+    "start_pause_t": 50, 
+    "stop_restart_t": 10
   }
 ]

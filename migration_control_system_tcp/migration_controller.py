@@ -55,8 +55,8 @@ if __name__=="__main__":
             print "the migration will start in", exp["start_pause_t"], "s:"
             data = {'action':'resume'}
             print data
-            client_salmon.send_msg(json.dumps(data))
-            luxor_client.send_msg(json.dumps(data))
+            #client_salmon.send_msg(json.dumps(data))
+            #luxor_client.send_msg(json.dumps(data))
             time.sleep(exp["start_pause_t"])
 
             print "pause for ", exp["pause_resume_t"], "s :"
