@@ -1,9 +1,0 @@
-[
-  {
-    "before_start_t": 15,
-    "resume_stop_t": 5, 
-    "pause_resume_t": 40, 
-    "start_pause_t": 15, 
-    "stop_restart_t": 5
-  }
-]
